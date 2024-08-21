@@ -1,14 +1,20 @@
 <template>
     <section class="tenders">
+        <div class="search-container">
+            <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="Поиск по тендерам..."
+                @input="filterTenders"
+            />
+        </div>
         <ul class="tenders-list">
-            <li class="tenders-list__elem" v-for="tender in tenders" :key="tender.id">
+            <li class="tenders-list__elem" v-for="tender in filteredTenders" :key="tender.id">
                 <Transition name="fade">
-                    <p v-if="!loading">{{ currentTitles[tender.id] || '' }}</p>
-                    <div v-else class="skeleton"></div>
-                </Transition>
-                <Transition name="fade">
-                    <p v-if="!loading">{{ currentDescriptions[tender.id] || '' }}</p>
-                    <div v-else class="skeleton"></div>
+                    <router-link :to="`/tender/${tender.id}`" @click="navigateToDetail">
+                        <p v-if="!loading">{{ currentTitles[tender.id] || '' }}</p>
+                        <div v-else class="skeleton"></div>
+                    </router-link>
                 </Transition>
             </li>
         </ul>
@@ -21,7 +27,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref, onMounted, computed } from 'vue';
 import PaginatorComponent from './PaginatorComponent.vue';
 
 interface Tender {
@@ -36,29 +42,29 @@ export default defineComponent({
         PaginatorComponent,
     },
     setup() {
-        const tenders = ref<Tender[]>([]);
-        const currentTitles = ref<{ [key: number]: string }>({});
-        const currentDescriptions = ref<{ [key: number]: string }>({});
-        const currentPage = ref(1);
-        const itemsPerPage = 10;
-        const totalPages = ref(0);
-        const loading = ref(false); // Состояние загрузки
+        let tenders = ref<Tender[]>([]);
+        let currentTitles = ref<{ [key: number]: string }>({});
+        let currentDescriptions = ref<{ [key: number]: string }>({});
+        let currentPage = ref(1);
+        let itemsPerPage = 30;
+        let totalPages = ref(0);
+        let loading = ref(false);
+        let searchQuery = ref('');
 
-        const fetchTenders = async (page: number = 1) => {
-            loading.value = true; // Устанавливаем состояние загрузки
-            // Очищаем текущие заголовки и описания
+        let fetchTenders = async (page: number = 1) => {
+            loading.value = true;
             currentTitles.value = {};
             currentDescriptions.value = {};
             try {
-                const response = await fetch(`https://api.test-webest.ru/list/?page=${page}&limit=${itemsPerPage}`);
+                let response = await fetch(`https://api.test-webest.ru/list/?page=${page}&limit=${itemsPerPage}`);
                 if (!response.ok) {
                     throw new Error('Ошибка при получении данных');
                 }
-                const data = await response.json();
-                tenders.value = data.data; // Предполагается, что данные приходят в нужном формате
-                totalPages.value = Math.ceil(data.total / itemsPerPage); // Обновляем общее количество страниц
+                let data = await response.json();
+                let receivedTenders = data.data;
+                tenders.value = receivedTenders.slice(0, itemsPerPage);
+                totalPages.value = Math.ceil(data.total / itemsPerPage);
 
-                // Обновляем заголовки и описания
                 tenders.value.forEach(tender => {
                     currentTitles.value[tender.id] = tender.title;
                     currentDescriptions.value[tender.id] = tender.description;
@@ -66,12 +72,25 @@ export default defineComponent({
             } catch (error) {
                 console.error('Ошибка при получении тендеров:', error);
             } finally {
-                loading.value = false; // Сбрасываем состояние загрузки
+                loading.value = false;
             }
         };
 
+        let filteredTenders = computed(() => {
+            if (!searchQuery.value) {
+                return tenders.value;
+            }
+            return tenders.value.filter(tender =>
+                tender.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+            );
+        });
+
+        const filterTenders = () => {
+            filteredTenders.value;
+        };
+
         onMounted(() => {
-            fetchTenders(currentPage.value); // Загружаем тендеры при монтировании компонента
+            fetchTenders(currentPage.value);
         });
 
         return {
@@ -81,15 +100,25 @@ export default defineComponent({
             currentPage,
             totalPages,
             fetchTenders,
-            loading, // Возвращаем состояние загрузки
+            loading,
+            searchQuery,
+            filteredTenders,
+            filterTenders,
         };
     },
 });
 </script>
 
-
-
 <style scoped lang="scss">
+.search-container {
+    margin-bottom: 20px;
+}
+
+.search-container input {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+}
 .tenders-list {
     padding: 20px 12px;
     list-style: none;
@@ -114,20 +143,15 @@ export default defineComponent({
         max-height: 4.5em;
     }
 }
+
 .skeleton {
-    background-color: #e0e0e0; /* Светло-серый цвет */
-    height: 1.5em; /* Высота равная line-height */
-    margin: 0.5em 0; /* Отступы для визуального разделения */
-    border-radius: 4px; /* Закругленные углы */
-    animation: pulse 1.5s infinite; /* Анимация пульсации */
-}
-.skeleton {
-    background-color: #e0e0e0; /* Светло-серый цвет */
-    height: 1.5em; /* Высота равная line-height */
-    margin: 0.5em 0; /* Отступы для визуального разделения */
-    border-radius: 4px; /* Закругленные углы */
-    animation: pulse 1.5s infinite; /* Анимация пульсации */
-    p{
+    background-color: #e0e0e0;
+    height: 1.5em;
+    margin: 0.5em 0;
+    border-radius: 4px;
+    animation: pulse 1.5s infinite;
+
+    p {
         transition: opacity 0s;
     }
 }
@@ -136,21 +160,27 @@ export default defineComponent({
     0% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
+
     100% {
         opacity: 1;
     }
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
     transition: opacity 0.5s;
-    p{
+
+    p {
         transition: none;
     }
 }
-.fade-enter, .fade-leave-to /* .fade-leave-active в <2.1.8 */ {
+
+.fade-enter,
+.fade-leave-to {
     opacity: 0;
 }
 </style>

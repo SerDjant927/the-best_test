@@ -1,5 +1,6 @@
 <template>
-  <TendersList />
+  <TendersList v-if="!isDetailPageVisible" @navigateToDetail="handleNavigateToDetail" />
+  <router-view v-if="isDetailPageVisible"></router-view>
 </template>
 
 <script lang="ts">
@@ -11,7 +12,13 @@ import TendersList from './components/TendersList.vue';
     TendersList,
   },
 })
-export default class App extends Vue {}
+export default class App extends Vue {
+  isDetailPageVisible = false; // Состояние для контроля видимости DetailPage
+
+  handleNavigateToDetail() {
+    this.isDetailPageVisible = true; // Устанавливаем состояние в true при переходе на DetailPage
+  }
+}
 </script>
 
 <style lang="scss">
