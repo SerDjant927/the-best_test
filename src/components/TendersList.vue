@@ -1,15 +1,9 @@
 <template>
     <section class="tenders">
-        <div class="search-container">
-            <input
-                type="text"
-                v-model="searchQuery"
-                placeholder="Поиск по тендерам..."
-                @input="filterTenders"
-            />
-        </div>
+        <input type="text" v-model="searchTerm" placeholder="Поиск по заголовку" @input="searchTender"
+            class="search-input" />
         <ul class="tenders-list">
-            <li class="tenders-list__elem" v-for="tender in filteredTenders" :key="tender.id">
+            <li class="tenders-list__elem" v-for="tender in tenders" :key="tender.id">
                 <Transition name="fade">
                     <router-link :to="`/tender/${tender.id}`" @click="navigateToDetail">
                         <p v-if="!loading">{{ currentTitles[tender.id] || '' }}</p>
@@ -18,16 +12,13 @@
                 </Transition>
             </li>
         </ul>
-        <PaginatorComponent 
-            :currentPage="currentPage" 
-            :totalPages="totalPages"
-            @update:currentPage="(page) => { currentPage = page; fetchTenders(page); }" 
-        />
+        <PaginatorComponent :currentPage="currentPage" :totalPages="totalPages"
+            @update:currentPage="(page) => { currentPage = page; fetchTenders(page); }" />
     </section>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted, computed } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
 import PaginatorComponent from './PaginatorComponent.vue';
 
 interface Tender {
@@ -41,6 +32,11 @@ export default defineComponent({
     components: {
         PaginatorComponent,
     },
+    methods: {
+        navigateToDetail() {
+            this.$emit('navigateToDetail');
+        },
+    },
     setup() {
         let tenders = ref<Tender[]>([]);
         let currentTitles = ref<{ [key: number]: string }>({});
@@ -49,8 +45,8 @@ export default defineComponent({
         let itemsPerPage = 30;
         let totalPages = ref(0);
         let loading = ref(false);
-        let searchQuery = ref('');
-
+        let searchTerm = ref('');
+        let allTenders = ref<Tender[]>([]);
         let fetchTenders = async (page: number = 1) => {
             loading.value = true;
             currentTitles.value = {};
@@ -62,6 +58,7 @@ export default defineComponent({
                 }
                 let data = await response.json();
                 let receivedTenders = data.data;
+                allTenders.value = receivedTenders;
                 tenders.value = receivedTenders.slice(0, itemsPerPage);
                 totalPages.value = Math.ceil(data.total / itemsPerPage);
 
@@ -75,20 +72,20 @@ export default defineComponent({
                 loading.value = false;
             }
         };
-
-        let filteredTenders = computed(() => {
-            if (!searchQuery.value) {
-                return tenders.value;
+        let searchTender = () => {
+            let searchTermLower = searchTerm.value.toLowerCase();
+            if (!searchTermLower) {
+                tenders.value = allTenders.value.slice((currentPage.value - 1) * itemsPerPage, currentPage.value * itemsPerPage);
+                return;
             }
-            return tenders.value.filter(tender =>
-                tender.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-            );
-        });
-
-        const filterTenders = () => {
-            filteredTenders.value;
+            let filteredTenders = allTenders.value.filter(tender => {
+                const title = tender.title || '';
+                const description = tender.description || '';
+                return title.toLowerCase().includes(searchTermLower) ||
+                    description.toLowerCase().includes(searchTermLower);
+            });
+            tenders.value = filteredTenders.slice(0, itemsPerPage);
         };
-
         onMounted(() => {
             fetchTenders(currentPage.value);
         });
@@ -101,9 +98,8 @@ export default defineComponent({
             totalPages,
             fetchTenders,
             loading,
-            searchQuery,
-            filteredTenders,
-            filterTenders,
+            searchTerm,
+            searchTender,
         };
     },
 });
@@ -119,6 +115,7 @@ export default defineComponent({
     padding: 10px;
     font-size: 16px;
 }
+
 .tenders-list {
     padding: 20px 12px;
     list-style: none;
@@ -182,5 +179,14 @@ export default defineComponent({
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
+}
+
+.search-input {
+    margin-bottom: 20px;
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 </style>

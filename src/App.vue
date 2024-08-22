@@ -13,10 +13,10 @@ import TendersList from './components/TendersList.vue';
   },
 })
 export default class App extends Vue {
-  isDetailPageVisible = false; // Состояние для контроля видимости DetailPage
-
+  isDetailPageVisible = false; 
+  
   handleNavigateToDetail() {
-    this.isDetailPageVisible = true; // Устанавливаем состояние в true при переходе на DetailPage
+    this.isDetailPageVisible = true; 
   }
 }
 </script>

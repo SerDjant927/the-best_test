@@ -1,7 +1,6 @@
 <template>
-
     <div v-if="loading" class="preloader">Загрузка...</div>
-    <div v-else name="fade">
+    <div v-else>
         <Transition name="fade">
             <div class="detail-page" v-if="tender">
                 <router-link to="/" class="back-button">Назад</router-link>
@@ -88,10 +87,17 @@ export default defineComponent({
 .fade-enter-active,
 .fade-leave-active {
     transition: opacity 3.5s;
+    .detail-page{
+        transition: opacity 3.5s;
+        opacity: 1;
+    }
 }
 
 .fade-enter,
 .fade-leave-to {
     opacity: 0;
+    .detail-page{
+        opacity: 0;
+    }
 }
 </style>
